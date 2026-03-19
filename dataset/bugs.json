@@ -1,0 +1,74 @@
+[
+    {
+        "id": "CWE-476",
+        "name": "NULL Pointer Dereference",
+        "description": "Программа разыменовывает указатель без проверки на NULL. Приводит к аварийному завершению (SIGSEGV) или DoS. Входит в CWE Top 25 2024.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint get_value(int *ptr) {\n    return *ptr;\n}\n\nint main() {\n    int *p = NULL;\n    printf(\"%d\\n\", get_value(p));\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint get_value(int *ptr) {\n    if (ptr == NULL) return -1;\n    return *ptr;\n}\n\nint main() {\n    int val = 42;\n    printf(\"%d\\n\", get_value(&val));\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe476_bad.c",
+        "good_file": "dataset/files/cwe476_good.c"
+    },
+    {
+        "id": "CWE-787",
+        "name": "Out-of-Bounds Write",
+        "description": "Запись данных за пределы выделенного буфера. Самая опасная уязвимость по CWE Top 25 2024 — 18 активно эксплуатируемых CVE. Типичный пример: strcpy без проверки длины.",
+        "bad_code": "#include <stdio.h>\n#include <string.h>\n\nvoid process(char *input) {\n    char buffer[16];\n    strcpy(buffer, input);\n    printf(\"%s\\n\", buffer);\n}\n\nint main() {\n    process(\"This string is definitely too long!\");\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <string.h>\n\nvoid process(char *input) {\n    char buffer[16];\n    strncpy(buffer, input, sizeof(buffer) - 1);\n    buffer[sizeof(buffer) - 1] = '\\0';\n    printf(\"%s\\n\", buffer);\n}\n\nint main() {\n    process(\"Short string\");\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe787_bad.c",
+        "good_file": "dataset/files/cwe787_good.c"
+    },
+    {
+        "id": "CWE-416",
+        "name": "Use After Free",
+        "description": "Обращение к памяти после вызова free(). Приводит к неопределённому поведению, возможному выполнению произвольного кода. 5 активно эксплуатируемых CVE в 2024 году.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main() {\n    int *ptr = (int *)malloc(sizeof(int));\n    *ptr = 42;\n    free(ptr);\n    printf(\"%d\\n\", *ptr);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main() {\n    int *ptr = (int *)malloc(sizeof(int));\n    *ptr = 42;\n    printf(\"%d\\n\", *ptr);\n    free(ptr);\n    ptr = NULL;\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe416_bad.c",
+        "good_file": "dataset/files/cwe416_good.c"
+    },
+    {
+        "id": "CWE-401",
+        "name": "Memory Leak",
+        "description": "Выделенная память не освобождается. При длительной работе программы приводит к исчерпанию ресурсов. Одна из наиболее часто выявляемых проблем cppcheck.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n\nvoid process_data(int n) {\n    int *data = (int *)malloc(n * sizeof(int));\n    if (!data) return;\n    for (int i = 0; i < n; i++) {\n        data[i] = i * 2;\n    }\n    printf(\"processed\\n\");\n}\n\nint main() {\n    process_data(100);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n\nvoid process_data(int n) {\n    int *data = (int *)malloc(n * sizeof(int));\n    if (!data) return;\n    for (int i = 0; i < n; i++) {\n        data[i] = i * 2;\n    }\n    printf(\"processed\\n\");\n    free(data);\n}\n\nint main() {\n    process_data(100);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe401_bad.c",
+        "good_file": "dataset/files/cwe401_good.c"
+    },
+    {
+        "id": "CWE-415",
+        "name": "Double Free",
+        "description": "Двойной вызов free() для одного и того же указателя. Повреждает структуры аллокатора памяти и может привести к выполнению произвольного кода.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n\nvoid cleanup(int *p) {\n    free(p);\n}\n\nint main() {\n    int *ptr = (int *)malloc(sizeof(int));\n    *ptr = 10;\n    cleanup(ptr);\n    free(ptr);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n\nvoid cleanup(int **p) {\n    if (*p) {\n        free(*p);\n        *p = NULL;\n    }\n}\n\nint main() {\n    int *ptr = (int *)malloc(sizeof(int));\n    *ptr = 10;\n    cleanup(&ptr);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe415_bad.c",
+        "good_file": "dataset/files/cwe415_good.c"
+    },
+    {
+        "id": "CWE-190",
+        "name": "Integer Overflow",
+        "description": "Переполнение целочисленного типа при арифметических операциях. Результат оборачивается в неожиданное значение. 3 активно эксплуатируемых CVE в 2024 году.",
+        "bad_code": "#include <stdio.h>\n#include <limits.h>\n\nint add(int a, int b) {\n    return a + b;\n}\n\nint main() {\n    int result = add(INT_MAX, 1);\n    printf(\"%d\\n\", result);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <limits.h>\n\nint safe_add(int a, int b, int *result) {\n    if (b > 0 && a > INT_MAX - b) return -1;\n    if (b < 0 && a < INT_MIN - b) return -1;\n    *result = a + b;\n    return 0;\n}\n\nint main() {\n    int result;\n    if (safe_add(1000, 2000, &result) == 0) {\n        printf(\"%d\\n\", result);\n    }\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe190_bad.c",
+        "good_file": "dataset/files/cwe190_good.c"
+    },
+    {
+        "id": "CWE-457",
+        "name": "Use of Uninitialized Variable",
+        "description": "Чтение переменной до присвоения ей значения. Результат непредсказуем и зависит от содержимого стека. Частая ошибка в ветках с ранним выходом.",
+        "bad_code": "#include <stdio.h>\n\nint compute(int x) {\n    int result;\n    if (x > 0) {\n        result = x * 2;\n    }\n    return result;\n}\n\nint main() {\n    printf(\"%d\\n\", compute(-5));\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nint compute(int x) {\n    int result = 0;\n    if (x > 0) {\n        result = x * 2;\n    }\n    return result;\n}\n\nint main() {\n    printf(\"%d\\n\", compute(-5));\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe457_bad.c",
+        "good_file": "dataset/files/cwe457_good.c"
+    },
+    {
+        "id": "CWE-125",
+        "name": "Out-of-Bounds Read",
+        "description": "Чтение данных за пределами выделенного буфера. Может привести к утечке данных из памяти или аварийному завершению. 3 активно эксплуатируемых CVE в 2024 году.",
+        "bad_code": "#include <stdio.h>\n\n#define SIZE 5\n\nint main() {\n    int arr[SIZE] = {1, 2, 3, 4, 5};\n    int idx = SIZE + 2;\n    printf(\"%d\\n\", arr[idx]);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\n#define SIZE 5\n\nint safe_get(int *arr, int size, int idx) {\n    if (idx < 0 || idx >= size) return -1;\n    return arr[idx];\n}\n\nint main() {\n    int arr[SIZE] = {1, 2, 3, 4, 5};\n    printf(\"%d\\n\", safe_get(arr, SIZE, 3));\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe125_bad.c",
+        "good_file": "dataset/files/cwe125_good.c"
+    }
+]

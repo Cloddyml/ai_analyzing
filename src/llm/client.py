@@ -10,7 +10,7 @@ class OllamaClient:
     """Клиент для общения с локально запущенным Ollama."""
 
     def __init__(self):
-        self.url = config.ollama_url + "/api/chat"
+        self.url = config.ollama_url + "/api/generate"
         self.model = config.model_name
         self.temp = config.temperature
 
@@ -25,7 +25,7 @@ class OllamaClient:
             "stream": False,
             "options": {
                 "temperature": self.temp,
-                "num_ctx": 8192,
+                "num_ctx": 2048,
                 "top_p": 0.9,
             },
         }

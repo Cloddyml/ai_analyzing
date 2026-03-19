@@ -20,7 +20,7 @@ class Config:
 def _load() -> Config:
     return Config(
         ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
-        model_name=os.getenv("MODEL_NAME", "qwen2.5-coder:14b"),
+        model_name=os.getenv("MODEL_NAME", "qwen2.5-coder:7b"),
         temperature=float(os.getenv("TEMPERATURE", "0.2")),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),
         dataset_path=os.getenv("DATASET_PATH", "dataset/bugs.json"),
