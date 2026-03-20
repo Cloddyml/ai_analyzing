@@ -20,7 +20,11 @@ def _write_temp_rule(xml: str) -> str:
 def _run_cppcheck(rule_path: str, c_file: str) -> bool:
     """
     Запускает cppcheck с правилом на указанном файле.
-    Возвращает True если cppcheck что-то нашёл.
+    Возвращает True если правило реально сработало (нашло совпадение).
+
+    Важно: cppcheck всегда печатает "Processing rule: ..." в stderr,
+    даже если совпадений нет. Поэтому проверяем наличие строки
+    "[rule]" — она появляется только при реальном срабатывании.
     """
     if not os.path.exists(c_file):
         logger.error(f"Тестовый файл не найден: {c_file}")
@@ -33,9 +37,18 @@ def _run_cppcheck(rule_path: str, c_file: str) -> bool:
             text=True,
             timeout=30,
         )
-        output = result.stderr.strip()
-        found = len(output) > 0
-        logger.debug(f"cppcheck на {c_file}: {'нашло' if found else 'ничего'}")
+
+        # Объединяем stdout и stderr — разные версии cppcheck
+        # пишут результаты в разные потоки
+        combined = result.stdout + result.stderr
+
+        # Реальное срабатывание правила отмечается тегом [rule]
+        # Строка вида: file.c:5:0: style: found 'strcpy (' [rule]
+        found = "[rule]" in combined
+
+        logger.debug(
+            f"cppcheck на {c_file}: {'СРАБОТАЛО' if found else 'нет совпадений'}"
+        )
         return found
 
     except FileNotFoundError:
