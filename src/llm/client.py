@@ -13,6 +13,7 @@ class OllamaClient:
         self.url = config.ollama_url + "/api/generate"
         self.model = config.model_name
         self.temp = config.temperature
+        self.num_ctx = config.num_ctx
 
     def ask(self, prompt: str) -> str | None:
         """
@@ -25,7 +26,7 @@ class OllamaClient:
             "stream": False,
             "options": {
                 "temperature": self.temp,
-                "num_ctx": 4096,
+                "num_ctx": self.num_ctx,
                 "top_p": 0.9,
             },
         }
