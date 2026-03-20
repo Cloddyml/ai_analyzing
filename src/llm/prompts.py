@@ -1,130 +1,121 @@
-def make_rule_prompt(bug: dict, retry_hint: str = "") -> str:
+def make_rule_prompt(
+    bug: dict,
+    bad_stream: str = "",
+    good_stream: str = "",
+    retry_hint: str = "",
+) -> str:
     """
-    Строит промпт для генерации cppcheck XML-правила.
-
-    bug — словарь с полями: id, name, description, bad_code, good_code
-    retry_hint — дополнительная подсказка при повторной попытке
+    Универсальный промпт для любого CWE.
+    Работает автоматически — токен-стримы извлекаются из файлов в generator.py.
+    Добавить новый баг = добавить запись в bugs.json + два C-файла.
     """
-
     rule_id = bug["id"].lower().replace("-", "_")
-    bug_id = bug["id"]
-    bug_name = bug["name"]
-    bug_desc = bug["description"]
-    bad_code = bug["bad_code"]
-    good_code = bug["good_code"]
 
-    # rf"..." = raw f-string: фигурные скобки для интерполяции работают,
-    # но обратные слеши НЕ интерпретируются как escape-последовательности.
-    # Это нужно чтобы \( \w+ \b и т.д. в тексте промпта не вызывали SyntaxWarning.
-    prompt = rf"""You are an expert in C/C++ static analysis tools, specifically cppcheck.
+    lines = []
+    lines.append("You are a cppcheck static analysis expert.")
+    lines.append(
+        "Generate a cppcheck custom rule in XML format to detect a specific C bug."
+    )
+    lines.append("")
+    lines.append(f"BUG: {bug['id']} — {bug['name']}")
+    lines.append(bug["description"])
+    lines.append("")
 
-Your task: generate a cppcheck custom rule in XML format that detects the following bug.
+    # Главный блок — оба токен-стрима. LLM видит ТОЧНО что матчить и что не матчить.
+    if bad_stream:
+        lines.append("=" * 55)
+        lines.append("STEP 1: Study these token streams carefully")
+        lines.append("=" * 55)
+        lines.append("")
+        lines.append("cppcheck converts C source to a TOKEN STREAM before matching.")
+        lines.append("Tokens are separated by EXACTLY ONE SPACE. No newlines ever.")
+        lines.append("")
+        lines.append("YOUR PATTERN MUST MATCH a substring of this BAD stream:")
+        lines.append(f"  {bad_stream}")
+        lines.append("")
+        if good_stream:
+            lines.append("YOUR PATTERN MUST NOT MATCH anything in this GOOD stream:")
+            lines.append(f"  {good_stream}")
+            lines.append("")
+        lines.append("Look at the difference between the two streams above.")
+        lines.append("Find a token sequence that appears in BAD but NOT in GOOD.")
+        lines.append("")
+    else:
+        lines.append("BAD code (rule MUST trigger):")
+        lines.append(bug["bad_code"])
+        lines.append("")
+        lines.append("GOOD code (rule MUST NOT trigger):")
+        lines.append(bug["good_code"])
+        lines.append("")
 
-Bug ID: {bug_id}
-Bug name: {bug_name}
-Description: {bug_desc}
-
-Example of BAD code (the rule MUST detect this):
-```c
-{bad_code}
-```
-
-Example of GOOD code (the rule MUST NOT trigger on this):
-```c
-{good_code}
-```
-
-═══════════════════════════════════════════════════════
-CRITICAL: HOW CPPCHECK PATTERN MATCHING WORKS
-═══════════════════════════════════════════════════════
-
-Cppcheck does NOT match patterns against raw source text.
-It tokenizes the source code first, then matches your regex
-against the TOKEN STREAM — a single string where every token
-is separated by exactly ONE SPACE.
-
-Examples of how source code becomes a token stream:
-
-  Source:       free(ptr);
-  Token stream: free ( ptr ) ;
-
-  Source:       if (ptr == NULL) return;
-  Token stream: if ( ptr == NULL ) return ;
-
-  Source:       int *p = NULL;
-  Token stream: int * p = NULL ;
-
-  Source:       strcpy(buffer, input);
-  Token stream: strcpy ( buffer , input ) ;
-
-  Source:       malloc(n * sizeof(int))
-  Token stream: malloc ( n * sizeof ( int ) )
-
-  Source:       *ptr = 42; free(ptr); printf("%d", *ptr);
-  Token stream: * ptr = 42 ; free ( ptr ) ; printf ( "%d" , * ptr ) ;
-
-RULES FOR WRITING PATTERNS:
-  CORRECT — space between tokens:    strcpy \(
-  CORRECT — \w+ for identifier:      free \( \w+ \)
-  CORRECT — .* to skip tokens:       free \( \w+ \) .* \* \w+
-  CORRECT — backreferences work:     free \( (\w+) \) .* \* \1
-  WRONG   — \s+ between tokens:      free\s*\(   <- never matches
-  WRONG   — no spaces:               free\([^)]+\)  <- never matches
-  WRONG   — \n or multiline:         not supported, stream is one line
-  WRONG   — \b word boundaries:      unreliable in token stream
-
-GOOD PATTERN EXAMPLES:
-  Detect strcpy:           strcpy \(
-  Detect free then deref:  free \( (\w+) \) .* \* \1
-  Detect double free:      free \( (\w+) \) .* free \( \1 \)
-  Detect NULL assign:      = NULL
-  Detect uninitialized:    int \w+ ; if \(
-═══════════════════════════════════════════════════════
-
-Rules for your answer:
-- Return ONLY the XML block, nothing else
-- No explanations, no markdown, no extra text
-- The <pattern> must be a valid PCRE regex for the TOKEN STREAM
-- The XML must be well-formed
-
-Required format:
-<rule>
-  <pattern>YOUR_TOKEN_STREAM_REGEX_HERE</pattern>
-  <message>Clear description of the problem for the developer</message>
-  <severity>warning</severity>
-  <id>{rule_id}</id>
-</rule>
-"""
+    lines.append("=" * 55)
+    lines.append("STEP 2: Write the pattern — strict rules")
+    lines.append("=" * 55)
+    lines.append("")
+    lines.append("Token stream examples (memorize these transformations):")
+    lines.append("  free(ptr);        ->  free ( ptr ) ;")
+    lines.append("  int *p = NULL;    ->  int * p = NULL ;")
+    lines.append("  if (!data)        ->  if ( ! data )")
+    lines.append("  return a + b;     ->  return a + b ;")
+    lines.append("  arr[idx]          ->  arr [ idx ]")
+    lines.append("")
+    lines.append("CORRECT — always add spaces around brackets and operators:")
+    lines.append(r"  free \( \w+ \)                    good")
+    lines.append(r"  strcpy \( \w+ , \w+ \)            good")
+    lines.append(r"  return \w+ \+ \w+ ;               good  (space before ;)")
+    lines.append(r"  free \( (\w+) \) .* \* \1         good  (backreference)")
+    lines.append(r"  [^=]= NULL                        good  (avoids == NULL)")
+    lines.append(r"  malloc \( .* \) (?!.* free \()    good  (lookahead)")
+    lines.append("")
+    lines.append("WRONG — common mistakes that break matching:")
+    lines.append(r"  free\(        WRONG — missing space before (")
+    lines.append(r"  return \w+;   WRONG — semicolon needs space: \w+ ;")
+    lines.append(r"  arr\[\w+\]    WRONG — brackets need spaces: arr \[ \w+ \]")
+    lines.append(r"  \s+           WRONG — use single literal space")
+    lines.append(r"  [^)]+         WRONG — ) has spaces around it in token stream")
+    lines.append(r"  \* \w+        WRONG — too broad, matches all pointer use")
+    lines.append("")
+    lines.append("=" * 55)
+    lines.append("STEP 3: Output this EXACT XML structure")
+    lines.append("=" * 55)
+    lines.append("")
+    lines.append("IMPORTANT: id, severity, summary MUST be nested INSIDE <message>.")
+    lines.append("")
+    lines.append('<rule version="1">')
+    lines.append("  <pattern>YOUR_REGEX_HERE</pattern>")
+    lines.append("  <message>")
+    lines.append(f"    <id>{rule_id}</id>")
+    lines.append("    <severity>warning</severity>")
+    lines.append("    <summary>Short description of the bug</summary>")
+    lines.append("  </message>")
+    lines.append("</rule>")
+    lines.append("")
+    lines.append("Output ONLY the XML. No markdown. No explanation.")
+    lines.append('Start with: <rule version="1">')
 
     if retry_hint:
-        prompt += f"\nNote: {retry_hint}\n"
+        lines.append("")
+        lines.append(f"PREVIOUS ATTEMPT FAILED: {retry_hint}")
 
-    return prompt
+    return "\n".join(lines)
 
 
 def make_retry_hint(attempt: int, reason: str) -> str:
-    """
-    Формирует подсказку для следующей попытки.
-
-    attempt — номер провалившейся попытки (0, 1, 2...)
-    reason  — причина провала ('no_xml', 'bad_xml', 'no_pattern')
-    """
-
     hints = {
         "no_xml": (
-            "Your previous response did not contain a <rule>...</rule> block. "
-            "Return ONLY the XML, starting with <rule> and ending with </rule>."
+            "Output ONLY the XML block. "
+            'Start with <rule version="1"> and end with </rule>. '
+            "No markdown (```), no explanation text."
         ),
         "bad_xml": (
-            "Your previous response contained malformed XML. "
-            "Make sure all tags are properly opened and closed."
+            "The XML was malformed. Check that every opening tag has a closing tag. "
+            "Do not escape backslashes in <pattern> — write them as-is."
         ),
         "no_pattern": (
-            "Your previous response had an empty <pattern> tag. "
-            "Provide a valid PCRE regex for the cppcheck TOKEN STREAM. "
-            r"Remember: tokens are separated by spaces, write 'strcpy \(' not 'strcpy\('."
+            "The <pattern> tag was empty. Look at the BAD token stream and write a regex "
+            "that matches part of it. Remember: space before every bracket. "
+            r"Example: 'free \( (\w+) \) .* \* \1'"
         ),
     }
-
     base = hints.get(reason, "Previous attempt failed. Try again carefully.")
     return f"Attempt {attempt + 1} failed. {base}"

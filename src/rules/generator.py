@@ -1,3 +1,6 @@
+import os
+import subprocess
+
 from src.llm.client import OllamaClient
 from src.llm.prompts import make_retry_hint, make_rule_prompt
 from src.rules.parser import parse_rule
@@ -9,18 +12,52 @@ logger = get_logger(__name__)
 _client = OllamaClient()
 
 
+def _get_token_stream(c_file: str) -> str:
+    """
+    Запускает cppcheck --rule='.+' и возвращает токен-стрим файла.
+    Это ТОЧНАЯ строка, против которой cppcheck матчит паттерны.
+    Работает для любого C-файла — ничего хардкодить не нужно.
+    """
+    if not c_file or not os.path.exists(c_file):
+        return ""
+    try:
+        result = subprocess.run(
+            ["cppcheck", "--rule=.+", c_file],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        for line in (result.stdout + result.stderr).splitlines():
+            if "[rule]" in line and "found '" in line:
+                start = line.find("found '") + len("found '")
+                end = line.rfind("' [rule]")
+                if start > 0 and end > start:
+                    return line[start:end].strip()
+    except Exception as e:
+        logger.warning(f"Не удалось получить токен-стрим из {c_file}: {e}")
+    return ""
+
+
 def generate_rule(bug: dict) -> dict | None:
     """
     Генерирует cppcheck-правило для одного бага.
-    При неудаче повторяет попытку до MAX_RETRIES раз.
-    Возвращает словарь правила или None если все попытки провалились.
+    Автоматически извлекает токен-стримы для любого CWE.
     """
-    hint = ""
+    bad_stream = _get_token_stream(bug.get("bad_file", ""))
+    good_stream = _get_token_stream(bug.get("good_file", ""))
 
+    if bad_stream:
+        logger.debug(f"[{bug['id']}] bad stream: {bad_stream[:80]}...")
+    else:
+        logger.warning(f"[{bug['id']}] токен-стрим bad_file недоступен")
+
+    hint = ""
     for attempt in range(config.max_retries):
         logger.info(f"[{bug['id']}] попытка {attempt + 1}/{config.max_retries}")
 
-        prompt = make_rule_prompt(bug, retry_hint=hint)
+        prompt = make_rule_prompt(
+            bug, bad_stream=bad_stream, good_stream=good_stream, retry_hint=hint
+        )
         response = _client.ask(prompt)
 
         if response is None:
@@ -28,7 +65,6 @@ def generate_rule(bug: dict) -> dict | None:
             return None
 
         rule, reason = parse_rule(response)
-
         if rule is not None:
             logger.info(f"[{bug['id']}] правило получено с попытки {attempt + 1}")
             return rule

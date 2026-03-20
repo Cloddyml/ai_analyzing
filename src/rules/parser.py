@@ -8,17 +8,30 @@ logger = get_logger(__name__)
 
 def parse_rule(llm_output: str) -> tuple[dict | None, str]:
     """
-    Извлекает правило из ответа LLM.
+    Извлекает правило из ответа LLM и конвертирует в правильный XML для cppcheck.
+
+    Cppcheck требует структуру:
+      <rule version="1">
+        <pattern>REGEX</pattern>
+        <message>
+          <id>rule_id</id>
+          <severity>warning</severity>
+          <summary>Human readable message</summary>
+        </message>
+      </rule>
+
+    LLM обычно генерирует плоскую структуру — мы её принимаем и
+    перестраиваем в правильную.
 
     Возвращает кортеж (rule, reason):
       - rule   — словарь с полями правила, или None если не получилось
-      - reason — причина неудачи: 'no_xml' | 'bad_xml' | 'no_pattern' | 'ok'
+      - reason — 'no_xml' | 'bad_xml' | 'no_pattern' | 'ok'
     """
     if not llm_output or not llm_output.strip():
         logger.warning("LLM вернула пустой ответ")
         return None, "no_xml"
 
-    match = re.search(r"<rule>.*?</rule>", llm_output, re.DOTALL)
+    match = re.search(r"<rule[^>]*>.*?</rule>", llm_output, re.DOTALL)
     if not match:
         logger.warning("В ответе LLM не найден блок <rule>...</rule>")
         return None, "no_xml"
@@ -36,13 +49,52 @@ def parse_rule(llm_output: str) -> tuple[dict | None, str]:
         logger.warning("Тег <pattern> пустой")
         return None, "no_pattern"
 
+    message_elem = root.find("message")
+
+    if message_elem is not None and message_elem.find("id") is not None:
+        rule_id = (message_elem.findtext("id") or "custom_rule").strip()
+        severity = (message_elem.findtext("severity") or "warning").strip()
+        summary = (
+            message_elem.findtext("summary") or "Rule violation detected"
+        ).strip()
+    else:
+        rule_id = (root.findtext("id") or "custom_rule").strip()
+        severity = (root.findtext("severity") or "warning").strip()
+        summary = ""
+        if message_elem is not None:
+            summary = (message_elem.text or "").strip()
+        if not summary:
+            summary = "Rule violation detected"
+
+    correct_xml = (
+        f'<?xml version="1.0"?>\n'
+        f'<rule version="1">\n'
+        f"  <pattern>{_escape_xml(pattern)}</pattern>\n"
+        f"  <message>\n"
+        f"    <id>{_escape_xml(rule_id)}</id>\n"
+        f"    <severity>{_escape_xml(severity)}</severity>\n"
+        f"    <summary>{_escape_xml(summary)}</summary>\n"
+        f"  </message>\n"
+        f"</rule>"
+    )
+
     rule = {
         "pattern": pattern,
-        "message": root.findtext("message", "No message").strip(),
-        "severity": root.findtext("severity", "warning").strip(),
-        "id": root.findtext("id", "custom_rule").strip(),
-        "raw_xml": xml_str,
+        "message": summary,
+        "severity": severity,
+        "id": rule_id,
+        "raw_xml": correct_xml,
     }
 
-    logger.debug(f"Правило успешно распознано: id={rule['id']}")
+    logger.debug(f"Правило успешно распознано: id={rule['id']}, pattern={pattern!r}")
     return rule, "ok"
+
+
+def _escape_xml(text: str) -> str:
+    """Экранирует спецсимволы XML в тексте."""
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )

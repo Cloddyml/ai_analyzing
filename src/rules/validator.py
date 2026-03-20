@@ -8,7 +8,6 @@ logger = get_logger(__name__)
 
 
 def _write_temp_rule(xml: str) -> str:
-    """Сохраняет XML во временный файл и возвращает путь к нему."""
     f = tempfile.NamedTemporaryFile(
         suffix=".xml", delete=False, mode="w", encoding="utf-8"
     )
@@ -17,19 +16,14 @@ def _write_temp_rule(xml: str) -> str:
     return f.name
 
 
-def _run_cppcheck(rule_path: str, c_file: str) -> bool:
+def _run_cppcheck(rule_path: str, c_file: str, rule_id: str) -> bool:
     """
-    Запускает cppcheck с правилом на указанном файле.
-    Возвращает True если правило реально сработало (нашло совпадение).
-
-    Важно: cppcheck всегда печатает "Processing rule: ..." в stderr,
-    даже если совпадений нет. Поэтому проверяем наличие строки
-    "[rule]" — она появляется только при реальном срабатывании.
+    С правильным XML (<id> внутри <message>) cppcheck выводит [rule_id], не [rule].
+    Проверяем оба варианта для надёжности.
     """
     if not os.path.exists(c_file):
-        logger.error(f"Тестовый файл не найден: {c_file}")
+        logger.error(f"Файл не найден: {c_file}")
         return False
-
     try:
         result = subprocess.run(
             ["cppcheck", f"--rule-file={rule_path}", c_file],
@@ -37,47 +31,31 @@ def _run_cppcheck(rule_path: str, c_file: str) -> bool:
             text=True,
             timeout=30,
         )
-
-        # Объединяем stdout и stderr — разные версии cppcheck
-        # пишут результаты в разные потоки
         combined = result.stdout + result.stderr
-
-        # Реальное срабатывание правила отмечается тегом [rule]
-        # Строка вида: file.c:5:0: style: found 'strcpy (' [rule]
-        found = "[rule]" in combined
-
-        logger.debug(
-            f"cppcheck на {c_file}: {'СРАБОТАЛО' if found else 'нет совпадений'}"
-        )
-        return found
-
+        for line in combined.strip().splitlines():
+            logger.debug(f"  cppcheck: {line}")
+        if "unable to load rule-file" in combined:
+            logger.warning(f"Не удалось загрузить правило: {combined[:200]}")
+            return False
+        return (f"[{rule_id}]" in combined) or ("[rule]" in combined)
     except FileNotFoundError:
-        logger.error("cppcheck не найден. Установи: apt install cppcheck")
+        logger.error("cppcheck не найден. Установи: sudo apt install cppcheck")
         return False
-
     except subprocess.TimeoutExpired:
-        logger.error(f"cppcheck завис на файле {c_file}")
+        logger.error(f"cppcheck завис на {c_file}")
         return False
 
 
 def validate(rule: dict, bug: dict) -> dict:
-    """
-    Проверяет правило на двух файлах: с багом и без.
-
-    Возвращает словарь:
-      tp — правило нашло баг в плохом коде   (хотим True)
-      fp — правило сработало на хорошем коде (хотим False)
-    """
     rule_path = _write_temp_rule(rule["raw_xml"])
-
+    rule_id = rule.get("id", "custom_rule")
+    logger.debug(f"[{bug['id']}] XML:\n{rule['raw_xml']}")
     try:
-        tp = _run_cppcheck(rule_path, bug["bad_file"])
-        fp = _run_cppcheck(rule_path, bug["good_file"])
+        tp = _run_cppcheck(rule_path, bug["bad_file"], rule_id)
+        fp = _run_cppcheck(rule_path, bug["good_file"], rule_id)
     finally:
         os.unlink(rule_path)
-
     logger.info(
-        f"[{bug['id']}] валидация: "
-        f"TP={'да' if tp else 'нет'}  FP={'да' if fp else 'нет'}"
+        f"[{bug['id']}] валидация: TP={'да' if tp else 'нет'}  FP={'да' if fp else 'нет'}"
     )
     return {"tp": tp, "fp": fp}
