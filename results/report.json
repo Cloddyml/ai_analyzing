@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-03-20 16:48:48",
-  "model": "qwen2.5-coder:7b",
+  "timestamp": "2026-04-25 14:55:08",
+  "model": "meta-llama-3.1-8b-instruct",
   "total": 8,
   "generated": 8,
   "failed": 0,
   "generation_rate": 1.0,
-  "tp": 3,
-  "fp": 3,
-  "fn": 2,
-  "tn": 2,
-  "precision": 0.5,
-  "recall": 0.6,
-  "f1": 0.545
+  "tp": 0,
+  "fp": 1,
+  "fn": 7,
+  "tn": 7,
+  "precision": 0.0,
+  "recall": 0.0,
+  "f1": 0.0
 }

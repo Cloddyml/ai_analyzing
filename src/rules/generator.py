@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from src.llm.client import OllamaClient
+from src.llm.client import LMStudioClient
 from src.llm.prompts import make_retry_hint, make_rule_prompt
 from src.rules.parser import parse_rule
 from src.utils.config import config
@@ -9,15 +9,10 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_client = OllamaClient()
+_client = LMStudioClient()
 
 
 def _get_token_stream(c_file: str) -> str:
-    """
-    Запускает cppcheck --rule='.+' и возвращает токен-стрим файла.
-    Это ТОЧНАЯ строка, против которой cppcheck матчит паттерны.
-    Работает для любого C-файла — ничего хардкодить не нужно.
-    """
     if not c_file or not os.path.exists(c_file):
         return ""
     try:
@@ -38,11 +33,13 @@ def _get_token_stream(c_file: str) -> str:
     return ""
 
 
-def generate_rule(bug: dict) -> dict | None:
-    """
-    Генерирует cppcheck-правило для одного бага.
-    Автоматически извлекает токен-стримы для любого CWE.
-    """
+def generate_rule(
+    bug: dict,
+    *,
+    model: str | None = None,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+) -> dict | None:
     bad_stream = _get_token_stream(bug.get("bad_file", ""))
     good_stream = _get_token_stream(bug.get("good_file", ""))
 
@@ -58,10 +55,15 @@ def generate_rule(bug: dict) -> dict | None:
         prompt = make_rule_prompt(
             bug, bad_stream=bad_stream, good_stream=good_stream, retry_hint=hint
         )
-        response = _client.ask(prompt)
+        response = _client.ask(
+            prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
 
         if response is None:
-            logger.error(f"[{bug['id']}] Ollama не ответил, прерываем")
+            logger.error(f"[{bug['id']}] LM Studio не ответил, прерываем")
             return None
 
         rule, reason = parse_rule(response)

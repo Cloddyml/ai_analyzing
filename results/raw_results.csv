@@ -1,9 +1,9 @@
 id,generated,tp,fp
-CWE-476,True,True,True
-CWE-787,True,True,False
-CWE-416,True,True,False
+CWE-476,True,False,False
+CWE-787,True,False,False
+CWE-416,True,False,False
 CWE-401,True,True,True
 CWE-415,True,False,False
-CWE-190,True,True,False
+CWE-190,True,False,False
 CWE-457,True,False,False
-CWE-125,True,True,True
+CWE-125,True,False,False

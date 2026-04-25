@@ -8,10 +8,10 @@ load_dotenv()
 
 @dataclass
 class Config:
-    ollama_url: str
+    lm_studio_url: str
     model_name: str
     temperature: float
-    num_ctx: int
+    max_tokens: int
     max_retries: int
     dataset_path: str
     results_dir: str
@@ -20,10 +20,10 @@ class Config:
 
 def _load() -> Config:
     return Config(
-        ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
-        model_name=os.getenv("MODEL_NAME", "qwen2.5-coder:7b"),
+        lm_studio_url=os.getenv("LM_STUDIO_URL", "http://localhost:1234/v1"),
+        model_name=os.getenv("MODEL_NAME", "meta-llama-3.1-8b-instruct"),
         temperature=float(os.getenv("TEMPERATURE", "0.2")),
-        num_ctx=int(os.getenv("NUM_CTX", "2048")),
+        max_tokens=int(os.getenv("MAX_TOKENS", "512")),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),
         dataset_path=os.getenv("DATASET_PATH", "dataset/bugs.json"),
         results_dir=os.getenv("RESULTS_DIR", "results/"),

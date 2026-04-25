@@ -4,39 +4,20 @@ from xml.etree import ElementTree as ET
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
 def parse_rule(llm_output: str) -> tuple[dict | None, str]:
-    """
-    Извлекает правило из ответа LLM и конвертирует в правильный XML для cppcheck.
-
-    Cppcheck требует структуру:
-      <rule version="1">
-        <pattern>REGEX</pattern>
-        <message>
-          <id>rule_id</id>
-          <severity>warning</severity>
-          <summary>Human readable message</summary>
-        </message>
-      </rule>
-
-    LLM обычно генерирует плоскую структуру — мы её принимаем и
-    перестраиваем в правильную.
-
-    Возвращает кортеж (rule, reason):
-      - rule   — словарь с полями правила, или None если не получилось
-      - reason — 'no_xml' | 'bad_xml' | 'no_pattern' | 'ok'
-    """
     if not llm_output or not llm_output.strip():
         logger.warning("LLM вернула пустой ответ")
         return None, "no_xml"
-
-    match = re.search(r"<rule[^>]*>.*?</rule>", llm_output, re.DOTALL)
-    if not match:
+    cleaned = _THINK_BLOCK.sub("", llm_output)
+    matches = list(re.finditer(r"<rule[^>]*>.*?</rule>", cleaned, re.DOTALL))
+    if not matches:
         logger.warning("В ответе LLM не найден блок <rule>...</rule>")
         return None, "no_xml"
 
-    xml_str = match.group(0)
+    xml_str = matches[-1].group(0)
 
     try:
         root = ET.fromstring(xml_str)
