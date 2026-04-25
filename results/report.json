@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-03-19 18:22:56",
+  "timestamp": "2026-03-20 16:48:48",
   "model": "qwen2.5-coder:7b",
   "total": 8,
-  "generated": 0,
-  "failed": 8,
-  "generation_rate": 0.0,
-  "tp": 0,
-  "fp": 0,
-  "fn": 0,
-  "tn": 0,
-  "precision": 0.0,
-  "recall": 0.0,
-  "f1": 0.0
+  "generated": 8,
+  "failed": 0,
+  "generation_rate": 1.0,
+  "tp": 3,
+  "fp": 3,
+  "fn": 2,
+  "tn": 2,
+  "precision": 0.5,
+  "recall": 0.6,
+  "f1": 0.545
 }

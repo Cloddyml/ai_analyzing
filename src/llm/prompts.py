@@ -21,7 +21,6 @@ def make_rule_prompt(
     lines.append(bug["description"])
     lines.append("")
 
-    # Главный блок — оба токен-стрима. LLM видит ТОЧНО что матчить и что не матчить.
     if bad_stream:
         lines.append("=" * 55)
         lines.append("STEP 1: Study these token streams carefully")

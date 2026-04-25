@@ -29,22 +29,16 @@ def calculate(results: list[dict]) -> dict:
     fn_count = sum(1 for r in generated if not r["tp"])
     tn_count = sum(1 for r in generated if not r["tp"] and not r["fp"])
 
-    # Precision — насколько редко правило ругается зря
-    # "из всех срабатываний — сколько были верными"
     precision = tp_count / (tp_count + fp_count) if (tp_count + fp_count) > 0 else 0.0
 
-    # Recall — насколько редко правило пропускает баги
-    # "из всех реальных багов — сколько правило нашло"
     recall = tp_count / (tp_count + fn_count) if (tp_count + fn_count) > 0 else 0.0
 
-    # F1 — среднее между precision и recall
     f1 = (
         2 * precision * recall / (precision + recall)
         if (precision + recall) > 0
         else 0.0
     )
 
-    # Generation rate — как часто LLM смогла выдать правило вообще
     generation_rate = len(generated) / total
 
     metrics = {
