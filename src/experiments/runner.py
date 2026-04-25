@@ -12,8 +12,8 @@ logger = get_logger(__name__)
 
 MODELS = [
     "meta-llama-3.1-8b-instruct",
+    "mistral-7b-instruct-v0.1",
     "qwen2.5.1-coder-7b-instruct",
-    "qwen_qwen3.5-9b",
 ]
 
 TEMPERATURES = [0.0, 0.3, 0.7]
