@@ -4,11 +4,6 @@ def make_rule_prompt(
     good_stream: str = "",
     retry_hint: str = "",
 ) -> str:
-    """
-    Универсальный промпт для любого CWE.
-    Работает автоматически — токен-стримы извлекаются из файлов в generator.py.
-    Добавить новый баг = добавить запись в bugs.json + два C-файла.
-    """
     rule_id = bug["id"].lower().replace("-", "_")
 
     lines = []

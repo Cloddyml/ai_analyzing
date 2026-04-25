@@ -16,14 +16,11 @@ def _write_temp_rule(xml: str) -> str:
     return f.name
 
 
-def _run_cppcheck(rule_path: str, c_file: str, rule_id: str) -> bool:
-    """
-    С правильным XML (<id> внутри <message>) cppcheck выводит [rule_id], не [rule].
-    Проверяем оба варианта для надёжности.
-    """
+def _run_cppcheck(rule_path: str, c_file: str, rule_id: str) -> dict:
     if not os.path.exists(c_file):
         logger.error(f"Файл не найден: {c_file}")
-        return False
+        return {"loaded": False, "matched": False}
+
     try:
         result = subprocess.run(
             ["cppcheck", f"--rule-file={rule_path}", c_file],
@@ -32,30 +29,50 @@ def _run_cppcheck(rule_path: str, c_file: str, rule_id: str) -> bool:
             timeout=30,
         )
         combined = result.stdout + result.stderr
+
         for line in combined.strip().splitlines():
             logger.debug(f"  cppcheck: {line}")
+
         if "unable to load rule-file" in combined:
-            logger.warning(f"Не удалось загрузить правило: {combined[:200]}")
-            return False
-        return (f"[{rule_id}]" in combined) or ("[rule]" in combined)
+            logger.warning(f"Правило не загрузилось: {combined[:200]}")
+            return {"loaded": False, "matched": False}
+
+        matched = (f"[{rule_id}]" in combined) or ("[rule]" in combined)
+        return {"loaded": True, "matched": matched}
+
     except FileNotFoundError:
         logger.error("cppcheck не найден. Установи: sudo apt install cppcheck")
-        return False
+        return {"loaded": False, "matched": False}
     except subprocess.TimeoutExpired:
         logger.error(f"cppcheck завис на {c_file}")
-        return False
+        return {"loaded": False, "matched": False}
 
 
 def validate(rule: dict, bug: dict) -> dict:
     rule_path = _write_temp_rule(rule["raw_xml"])
     rule_id = rule.get("id", "custom_rule")
+
     logger.debug(f"[{bug['id']}] XML:\n{rule['raw_xml']}")
+
     try:
-        tp = _run_cppcheck(rule_path, bug["bad_file"], rule_id)
-        fp = _run_cppcheck(rule_path, bug["good_file"], rule_id)
+        bad_result = _run_cppcheck(rule_path, bug["bad_file"], rule_id)
+        good_result = _run_cppcheck(rule_path, bug["good_file"], rule_id)
     finally:
         os.unlink(rule_path)
+
+    syntactically_valid = bad_result["loaded"] and good_result["loaded"]
+    tp = bad_result["matched"]
+    fp = good_result["matched"]
+
     logger.info(
-        f"[{bug['id']}] валидация: TP={'да' if tp else 'нет'}  FP={'да' if fp else 'нет'}"
+        f"[{bug['id']}] валидация: "
+        f"valid={'да' if syntactically_valid else 'НЕТ'}  "
+        f"TP={'да' if tp else 'нет'}  "
+        f"FP={'да' if fp else 'нет'}"
     )
-    return {"tp": tp, "fp": fp}
+
+    return {
+        "tp": tp,
+        "fp": fp,
+        "syntactically_valid": syntactically_valid,
+    }

@@ -5,10 +5,6 @@ from src.utils.config import config
 
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    Возвращает логгер для модуля.
-    Использование: logger = get_logger(__name__)
-    """
     logger = logging.getLogger(name)
 
     if logger.handlers:

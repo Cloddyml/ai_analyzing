@@ -7,24 +7,14 @@ logger = get_logger(__name__)
 
 
 class LMStudioClient:
-    """
-    Клиент для LM Studio через OpenAI-совместимый API.
-
-    Зачем так: LM Studio при включённом сервере (Developer tab → Status: Running)
-    принимает запросы в формате OpenAI Chat Completions. Поэтому мы используем
-    стандартный openai SDK, просто меняем base_url на локальный.
-
-    Преимущества по сравнению с прежним OllamaClient:
-      - стандартный SDK, не надо ловить квадратные ошибки HTTP вручную
-      - параметры temperature / max_tokens / model можно переопределять
-        на каждый вызов — это нужно для experiment runner.
-    """
-
     def __init__(self):
         self._client = OpenAI(
             base_url=config.lm_studio_url,
+            # API key обязателен для SDK, но LM Studio его не проверяет —
+            # любая непустая строка подойдёт.
             api_key="lm-studio",
         )
+        # Дефолты из .env. Используются только если в ask() не передали override.
         self.default_model = config.model_name
         self.default_temp = config.temperature
         self.default_max_tokens = config.max_tokens
@@ -36,13 +26,6 @@ class LMStudioClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> str | None:
-        """
-        Отправляет промпт в LLM. Возвращает текст ответа или None при ошибке.
-
-        Параметры model / temperature / max_tokens — опциональные оверрайды
-        дефолтов из конфига. Это позволяет experiment runner-у крутить
-        одни и те же баги через разные конфигурации без перезапуска процесса.
-        """
         used_model = model or self.default_model
         used_temp = temperature if temperature is not None else self.default_temp
         used_max = max_tokens or self.default_max_tokens

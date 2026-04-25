@@ -21,7 +21,7 @@ class Config:
 def _load() -> Config:
     return Config(
         lm_studio_url=os.getenv("LM_STUDIO_URL", "http://localhost:1234/v1"),
-        model_name=os.getenv("MODEL_NAME", "meta-llama-3.1-8b-instruct"),
+        model_name=os.getenv("MODEL_NAME", "qwen2.5.1-coder-7b-instruct"),
         temperature=float(os.getenv("TEMPERATURE", "0.2")),
         max_tokens=int(os.getenv("MAX_TOKENS", "512")),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),

@@ -4,17 +4,6 @@ logger = get_logger(__name__)
 
 
 def calculate(results: list[dict]) -> dict:
-    """
-    Считает метрики по списку результатов из pipeline.
-
-    Каждый элемент results — словарь с полями:
-      id        — идентификатор бага
-      generated — удалось ли сгенерировать правило (bool)
-      tp        — правило нашло баг в плохом коде (bool)
-      fp        — правило сработало на хорошем коде (bool)
-
-    Возвращает словарь со всеми метриками.
-    """
     total = len(results)
     generated = [r for r in results if r["generated"]]
     failed = total - len(generated)
@@ -60,7 +49,6 @@ def calculate(results: list[dict]) -> dict:
 
 
 def _empty_metrics(total: int) -> dict:
-    """Возвращает нулевые метрики если правил нет вообще."""
     return {
         "total": total,
         "generated": 0,

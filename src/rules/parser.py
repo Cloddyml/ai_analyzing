@@ -72,7 +72,6 @@ def parse_rule(llm_output: str) -> tuple[dict | None, str]:
 
 
 def _escape_xml(text: str) -> str:
-    """Экранирует спецсимволы XML в тексте."""
     return (
         text.replace("&", "&amp;")
         .replace("<", "&lt;")
