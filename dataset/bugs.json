@@ -70,5 +70,203 @@
         "good_code": "#include <stdio.h>\n\n#define SIZE 5\n\nint safe_get(int *arr, int size, int idx) {\n    if (idx < 0 || idx >= size) return -1;\n    return arr[idx];\n}\n\nint main() {\n    int arr[SIZE] = {1, 2, 3, 4, 5};\n    printf(\"%d\\n\", safe_get(arr, SIZE, 3));\n    return 0;\n}",
         "bad_file": "dataset/files/cwe125_bad.c",
         "good_file": "dataset/files/cwe125_good.c"
+    },
+    {
+        "id": "CWE-242",
+        "name": "Use of Inherently Dangerous Function",
+        "description": "Использование функции gets(), которая признана опасной и удалена из стандарта C11. gets() не контролирует размер буфера и всегда приводит к переполнению при длинном вводе. Источник: NIST Juliet Test Suite, MITRE CWE-242.",
+        "bad_code": "#include <stdio.h>\n\nvoid read_input(void) {\n    char buffer[64];\n    gets(buffer);\n    printf(\"%s\\n\", buffer);\n}\n\nint main(void) {\n    read_input();\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nvoid read_input(void) {\n    char buffer[64];\n    if (fgets(buffer, sizeof(buffer), stdin) != NULL) {\n        printf(\"%s\\n\", buffer);\n    }\n}\n\nint main(void) {\n    read_input();\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe242_bad.c",
+        "good_file": "dataset/files/cwe242_good.c"
+    },
+    {
+        "id": "CWE-134",
+        "name": "Use of Externally-Controlled Format String",
+        "description": "Передача пользовательского ввода в качестве форматной строки в printf-семейство функций. Атакующий может прочесть/записать память через спецификаторы вроде %x или %n. Источник: MITRE CWE-134, входит в Top 25 ранее.",
+        "bad_code": "#include <stdio.h>\n\nvoid log_message(const char *msg) {\n    printf(msg);\n}\n\nint main(void) {\n    log_message(\"Hello %x %x\\n\");\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nvoid log_message(const char *msg) {\n    printf(\"%s\", msg);\n}\n\nint main(void) {\n    log_message(\"Hello world\\n\");\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe134_bad.c",
+        "good_file": "dataset/files/cwe134_good.c"
+    },
+    {
+        "id": "CWE-369",
+        "name": "Divide By Zero",
+        "description": "Деление на ноль без проверки делителя. На большинстве платформ приводит к SIGFPE и аварийному завершению программы. Источник: NIST Juliet Test Suite, CWE-369.",
+        "bad_code": "#include <stdio.h>\n\nint divide(int a, int b) {\n    return a / b;\n}\n\nint main(void) {\n    int x = 10;\n    int y = 0;\n    printf(\"%d\\n\", divide(x, y));\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nint divide(int a, int b) {\n    if (b == 0) return 0;\n    return a / b;\n}\n\nint main(void) {\n    int x = 10;\n    int y = 0;\n    printf(\"%d\\n\", divide(x, y));\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe369_bad.c",
+        "good_file": "dataset/files/cwe369_good.c"
+    },
+    {
+        "id": "CWE-562",
+        "name": "Return of Stack Variable Address",
+        "description": "Возврат указателя на локальную переменную из функции. После возврата стек этой функции переиспользуется, и указатель становится невалидным. Источник: MITRE CWE-562, NIST Juliet.",
+        "bad_code": "#include <stdio.h>\n\nint *get_value(void) {\n    int local = 42;\n    return &local;\n}\n\nint main(void) {\n    int *p = get_value();\n    printf(\"%d\\n\", *p);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint *get_value(void) {\n    int *p = (int *)malloc(sizeof(int));\n    if (p) *p = 42;\n    return p;\n}\n\nint main(void) {\n    int *p = get_value();\n    if (p) {\n        printf(\"%d\\n\", *p);\n        free(p);\n    }\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe562_bad.c",
+        "good_file": "dataset/files/cwe562_good.c"
+    },
+    {
+        "id": "CWE-690",
+        "name": "Unchecked Return Value to NULL Pointer Dereference",
+        "description": "Разыменование результата malloc() без проверки на NULL. При нехватке памяти malloc вернёт NULL, и следующая операция разыменования приведёт к падению. Источник: MITRE CWE-690.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    int *data = (int *)malloc(100 * sizeof(int));\n    data[0] = 42;\n    printf(\"%d\\n\", data[0]);\n    free(data);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    int *data = (int *)malloc(100 * sizeof(int));\n    if (data == NULL) return 1;\n    data[0] = 42;\n    printf(\"%d\\n\", data[0]);\n    free(data);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe690_bad.c",
+        "good_file": "dataset/files/cwe690_good.c"
+    },
+    {
+        "id": "CWE-252",
+        "name": "Unchecked Return Value",
+        "description": "Игнорирование возвращаемого значения функции, которая может вернуть ошибку (например, fopen, fread). Программа продолжает работу с невалидным состоянием. Источник: MITRE CWE-252.",
+        "bad_code": "#include <stdio.h>\n\nint main(void) {\n    FILE *f = fopen(\"data.txt\", \"r\");\n    char buffer[64];\n    fread(buffer, 1, sizeof(buffer), f);\n    fclose(f);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nint main(void) {\n    FILE *f = fopen(\"data.txt\", \"r\");\n    if (f == NULL) return 1;\n    char buffer[64];\n    fread(buffer, 1, sizeof(buffer), f);\n    fclose(f);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe252_bad.c",
+        "good_file": "dataset/files/cwe252_good.c"
+    },
+    {
+        "id": "CWE-191",
+        "name": "Integer Underflow",
+        "description": "Уход целочисленного значения ниже минимального возможного. Для unsigned типов вычитание может дать огромное положительное значение, ломающее логику программы. Источник: NIST Juliet Test Suite, CWE-191.",
+        "bad_code": "#include <stdio.h>\n\nunsigned int subtract(unsigned int a, unsigned int b) {\n    return a - b;\n}\n\nint main(void) {\n    unsigned int x = 5;\n    unsigned int y = 10;\n    printf(\"%u\\n\", subtract(x, y));\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nunsigned int subtract(unsigned int a, unsigned int b) {\n    if (b > a) return 0;\n    return a - b;\n}\n\nint main(void) {\n    unsigned int x = 5;\n    unsigned int y = 10;\n    printf(\"%u\\n\", subtract(x, y));\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe191_bad.c",
+        "good_file": "dataset/files/cwe191_good.c"
+    },
+    {
+        "id": "CWE-197",
+        "name": "Numeric Truncation Error",
+        "description": "Преобразование значения большего типа в меньший без проверки границ. Старшие биты теряются, результат может оказаться отрицательным или иметь неожиданное значение. Источник: NIST Juliet Test Suite, CWE-197.",
+        "bad_code": "#include <stdio.h>\n\nchar truncate_value(int x) {\n    char result = x;\n    return result;\n}\n\nint main(void) {\n    int big = 300;\n    printf(\"%d\\n\", truncate_value(big));\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <limits.h>\n\nchar truncate_value(int x) {\n    if (x > CHAR_MAX || x < CHAR_MIN) return 0;\n    char result = x;\n    return result;\n}\n\nint main(void) {\n    int big = 300;\n    printf(\"%d\\n\", truncate_value(big));\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe197_bad.c",
+        "good_file": "dataset/files/cwe197_good.c"
+    },
+    {
+        "id": "CWE-195",
+        "name": "Signed to Unsigned Conversion Error",
+        "description": "Передача signed значения туда, где ожидается unsigned. Отрицательное число становится огромным положительным, ломая проверки границ (например, при передаче в memcpy). Источник: MITRE CWE-195.",
+        "bad_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_n_bytes(char *dst, char *src, int n) {\n    memcpy(dst, src, n);\n}\n\nint main(void) {\n    char dst[16];\n    char src[] = \"hello\";\n    int n = -1;\n    copy_n_bytes(dst, src, n);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_n_bytes(char *dst, char *src, int n) {\n    if (n < 0) return;\n    memcpy(dst, src, (size_t)n);\n}\n\nint main(void) {\n    char dst[16];\n    char src[] = \"hello\";\n    int n = -1;\n    copy_n_bytes(dst, src, n);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe195_bad.c",
+        "good_file": "dataset/files/cwe195_good.c"
+    },
+    {
+        "id": "CWE-131",
+        "name": "Incorrect Calculation of Buffer Size",
+        "description": "Неправильный расчёт размера буфера: malloc(strlen(s)) без +1 для нулевого терминатора. Последующий strcpy запишет байт за пределы выделенной памяти. Источник: MITRE CWE-131.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nchar *duplicate(const char *s) {\n    char *copy = (char *)malloc(strlen(s));\n    strcpy(copy, s);\n    return copy;\n}\n\nint main(void) {\n    char *d = duplicate(\"hello\");\n    printf(\"%s\\n\", d);\n    free(d);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nchar *duplicate(const char *s) {\n    char *copy = (char *)malloc(strlen(s) + 1);\n    if (copy) strcpy(copy, s);\n    return copy;\n}\n\nint main(void) {\n    char *d = duplicate(\"hello\");\n    printf(\"%s\\n\", d);\n    free(d);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe131_bad.c",
+        "good_file": "dataset/files/cwe131_good.c"
+    },
+    {
+        "id": "CWE-170",
+        "name": "Improper Null Termination",
+        "description": "Использование strncpy без явного добавления нулевого терминатора. Если входная строка длиннее буфера, результат не будет null-terminated, и printf/strlen прочитают мусор за пределами буфера. Источник: MITRE CWE-170.",
+        "bad_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_string(char *dst, const char *src) {\n    char buffer[8];\n    strncpy(buffer, src, sizeof(buffer));\n    printf(\"%s\\n\", buffer);\n}\n\nint main(void) {\n    char dst[8];\n    copy_string(dst, \"long string here\");\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_string(char *dst, const char *src) {\n    char buffer[8];\n    strncpy(buffer, src, sizeof(buffer) - 1);\n    buffer[sizeof(buffer) - 1] = '\\0';\n    printf(\"%s\\n\", buffer);\n}\n\nint main(void) {\n    char dst[8];\n    copy_string(dst, \"long string here\");\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe170_bad.c",
+        "good_file": "dataset/files/cwe170_good.c"
+    },
+    {
+        "id": "CWE-129",
+        "name": "Improper Validation of Array Index",
+        "description": "Использование индекса массива без проверки на отрицательность или превышение размера. Источник: MITRE CWE-129, NIST Juliet Test Suite.",
+        "bad_code": "#include <stdio.h>\n\nint get_element(int *arr, int idx) {\n    return arr[idx];\n}\n\nint main(void) {\n    int data[5] = {1, 2, 3, 4, 5};\n    int idx = -1;\n    printf(\"%d\\n\", get_element(data, idx));\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nint get_element(int *arr, int size, int idx) {\n    if (idx < 0 || idx >= size) return -1;\n    return arr[idx];\n}\n\nint main(void) {\n    int data[5] = {1, 2, 3, 4, 5};\n    int idx = -1;\n    printf(\"%d\\n\", get_element(data, 5, idx));\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe129_bad.c",
+        "good_file": "dataset/files/cwe129_good.c"
+    },
+    {
+        "id": "CWE-121",
+        "name": "Stack-based Buffer Overflow",
+        "description": "Переполнение буфера, расположенного на стеке. Может перезаписать адрес возврата функции и привести к выполнению произвольного кода. Один из классических векторов атаки. Источник: NIST Juliet Test Suite, CWE-121.",
+        "bad_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_to_stack(const char *src) {\n    char dest[10];\n    strcpy(dest, src);\n    printf(\"%s\\n\", dest);\n}\n\nint main(void) {\n    copy_to_stack(\"AAAAAAAAAAAAAAAAAAAAAAAA\");\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_to_stack(const char *src) {\n    char dest[10];\n    strncpy(dest, src, sizeof(dest) - 1);\n    dest[sizeof(dest) - 1] = '\\0';\n    printf(\"%s\\n\", dest);\n}\n\nint main(void) {\n    copy_to_stack(\"short\");\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe121_bad.c",
+        "good_file": "dataset/files/cwe121_good.c"
+    },
+    {
+        "id": "CWE-122",
+        "name": "Heap-based Buffer Overflow",
+        "description": "Запись данных за пределы буфера, выделенного через malloc/calloc на куче. Повреждает метаданные аллокатора и соседние выделения. Источник: NIST Juliet Test Suite, CWE-122.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    char *buffer = (char *)malloc(8);\n    if (!buffer) return 1;\n    strcpy(buffer, \"AAAAAAAAAAAAAAAAAAAA\");\n    printf(\"%s\\n\", buffer);\n    free(buffer);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    char *buffer = (char *)malloc(32);\n    if (!buffer) return 1;\n    strncpy(buffer, \"AAAAAAAAAAAAAAAAAAAA\", 31);\n    buffer[31] = '\\0';\n    printf(\"%s\\n\", buffer);\n    free(buffer);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe122_bad.c",
+        "good_file": "dataset/files/cwe122_good.c"
+    },
+    {
+        "id": "CWE-126",
+        "name": "Buffer Over-read",
+        "description": "Чтение данных за пределами буфера через функции работы со строками, например strlen на не-null-terminated массиве. Источник: NIST Juliet Test Suite, CWE-126.",
+        "bad_code": "#include <stdio.h>\n#include <string.h>\n\nint main(void) {\n    char buffer[5] = {'a', 'b', 'c', 'd', 'e'};\n    size_t len = strlen(buffer);\n    printf(\"%zu\\n\", len);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <string.h>\n\nint main(void) {\n    char buffer[6] = {'a', 'b', 'c', 'd', 'e', '\\0'};\n    size_t len = strlen(buffer);\n    printf(\"%zu\\n\", len);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe126_bad.c",
+        "good_file": "dataset/files/cwe126_good.c"
+    },
+    {
+        "id": "CWE-665",
+        "name": "Improper Initialization",
+        "description": "Структура или массив используются без полной инициализации всех полей/элементов. Чтение неинициализированных полей даёт мусор из стека. Источник: MITRE CWE-665.",
+        "bad_code": "#include <stdio.h>\n\nstruct Point {\n    int x;\n    int y;\n};\n\nint main(void) {\n    struct Point p;\n    p.x = 10;\n    printf(\"x=%d y=%d\\n\", p.x, p.y);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nstruct Point {\n    int x;\n    int y;\n};\n\nint main(void) {\n    struct Point p = {0, 0};\n    p.x = 10;\n    printf(\"x=%d y=%d\\n\", p.x, p.y);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe665_bad.c",
+        "good_file": "dataset/files/cwe665_good.c"
+    },
+    {
+        "id": "CWE-688",
+        "name": "Function Call With Incorrect Variable as Argument",
+        "description": "Передача функции аргумента, не соответствующего её требованиям, например free() на адрес стековой переменной. Источник: MITRE CWE-688.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    int x = 42;\n    int *p = &x;\n    free(p);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    int *p = (int *)malloc(sizeof(int));\n    if (!p) return 1;\n    *p = 42;\n    free(p);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe688_bad.c",
+        "good_file": "dataset/files/cwe688_good.c"
+    },
+    {
+        "id": "CWE-468",
+        "name": "Incorrect Pointer Scaling",
+        "description": "Сложение с указателем, где забывается, что C автоматически масштабирует на размер типа. Например, прибавление sizeof(int)*N вместо просто N. Источник: MITRE CWE-468.",
+        "bad_code": "#include <stdio.h>\n\nint main(void) {\n    int arr[10] = {0};\n    int *p = arr + sizeof(int) * 5;\n    *p = 42;\n    printf(\"%d\\n\", *p);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nint main(void) {\n    int arr[10] = {0};\n    int *p = arr + 5;\n    *p = 42;\n    printf(\"%d\\n\", *p);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe468_bad.c",
+        "good_file": "dataset/files/cwe468_good.c"
+    },
+    {
+        "id": "CWE-761",
+        "name": "Free of Pointer not at Start of Buffer",
+        "description": "Вызов free() на указателе, сдвинутом относительно начала выделенного блока. Аллокатор хранит метаданные перед началом блока, и сдвинутый указатель повреждает их. Источник: MITRE CWE-761.",
+        "bad_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    char *str = (char *)malloc(20);\n    if (!str) return 1;\n    strcpy(str, \"hello world\");\n    str = str + 6;\n    free(str);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    char *str = (char *)malloc(20);\n    if (!str) return 1;\n    strcpy(str, \"hello world\");\n    char *part = str + 6;\n    printf(\"%s\\n\", part);\n    free(str);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe761_bad.c",
+        "good_file": "dataset/files/cwe761_good.c"
+    },
+    {
+        "id": "CWE-805",
+        "name": "Buffer Access with Incorrect Length Value",
+        "description": "Использование sizeof на указателе вместо реального размера буфера. sizeof(ptr) возвращает размер указателя (8 байт на x64), а не размер данных, на которые он указывает. Источник: MITRE CWE-805.",
+        "bad_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_data(char *dst, char *src) {\n    memcpy(dst, src, sizeof(src));\n}\n\nint main(void) {\n    char buffer[100];\n    char source[] = \"long source data here\";\n    copy_data(buffer, source);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n#include <string.h>\n\nvoid copy_data(char *dst, char *src, size_t n) {\n    memcpy(dst, src, n);\n}\n\nint main(void) {\n    char buffer[100];\n    char source[] = \"long source data here\";\n    copy_data(buffer, source, strlen(source) + 1);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe805_bad.c",
+        "good_file": "dataset/files/cwe805_good.c"
+    },
+    {
+        "id": "CWE-908",
+        "name": "Use of Uninitialized Resource",
+        "description": "Использование ресурса (FILE*, дескриптора), который не был корректно инициализирован. Например, чтение из FILE* до проверки fopen. Источник: MITRE CWE-908.",
+        "bad_code": "#include <stdio.h>\n\nint main(void) {\n    FILE *f;\n    char buffer[64];\n    fread(buffer, 1, sizeof(buffer), f);\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nint main(void) {\n    FILE *f = fopen(\"data.txt\", \"r\");\n    if (f == NULL) return 1;\n    char buffer[64];\n    fread(buffer, 1, sizeof(buffer), f);\n    fclose(f);\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe908_bad.c",
+        "good_file": "dataset/files/cwe908_good.c"
+    },
+    {
+        "id": "CWE-676",
+        "name": "Use of Potentially Dangerous Function",
+        "description": "Использование sprintf без контроля размера буфера. В отличие от snprintf, sprintf не имеет ограничения на длину вывода. При длинном входе переполняет буфер. Источник: MITRE CWE-676.",
+        "bad_code": "#include <stdio.h>\n\nvoid format_message(int id, const char *name) {\n    char buffer[16];\n    sprintf(buffer, \"id=%d name=%s\", id, name);\n    printf(\"%s\\n\", buffer);\n}\n\nint main(void) {\n    format_message(100, \"a_very_long_user_name\");\n    return 0;\n}",
+        "good_code": "#include <stdio.h>\n\nvoid format_message(int id, const char *name) {\n    char buffer[16];\n    snprintf(buffer, sizeof(buffer), \"id=%d name=%s\", id, name);\n    printf(\"%s\\n\", buffer);\n}\n\nint main(void) {\n    format_message(100, \"a_very_long_user_name\");\n    return 0;\n}",
+        "bad_file": "dataset/files/cwe676_bad.c",
+        "good_file": "dataset/files/cwe676_good.c"
     }
 ]

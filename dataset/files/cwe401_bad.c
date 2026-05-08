@@ -8,7 +8,6 @@ void process_data(int n) {
         data[i] = i * 2;
     }
     printf("processed\n");
-    /* free(data) забыли */
 }
 
 int main() {
